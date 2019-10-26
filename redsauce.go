@@ -13,6 +13,7 @@ import (
 
 var initState = flag.String("state", "", "Initial worldstate. Use 1s and 0s to specify living and dead cells.")
 var generations = flag.Int("gen", 10, "The number of generations to iterate.")
+var quiet = flag.Bool("quiet", false, "Only print the final worldstate.")
 
 // Rule 30
 var rule = map[int]int{
@@ -59,22 +60,22 @@ func step(state []bool, r map[int]int) []bool {
 			-1: false,
 			0:  cell}[r[toInt(getSubState(state, i))]])
 	}
-    return newState
+	return newState
 }
 
 func getSubState(state []bool, index int) []bool {
-    var subState []bool
-    if index <= 0 {
-        subState = append(subState, false)
-    } else {
-        subState = append(subState, state[index-1])
-    }
-    subState = append(subState, state[index])
-    if index + 1 >= len(state) {
-        subState = append(subState, false)
-    } else {
-        subState = append(subState, state[index+1])
-    }
+	var subState []bool
+	if index <= 0 {
+		subState = append(subState, false)
+	} else {
+		subState = append(subState, state[index-1])
+	}
+	subState = append(subState, state[index])
+	if index+1 >= len(state) {
+		subState = append(subState, false)
+	} else {
+		subState = append(subState, state[index+1])
+	}
 	return subState
 }
 
@@ -89,20 +90,24 @@ func toInt(subState []bool) int {
 }
 
 func stringify(state []bool) string {
-    outString := ""
-    for _, cell := range state {
-        outString += map[bool]string{true: "1", false: "0"}[cell]
-    }
-    return outString
+	outString := ""
+	for _, cell := range state {
+		outString += map[bool]string{true: "1", false: "0"}[cell]
+	}
+	return outString
 }
 
 func main() {
 	flag.Parse()
 	var worldState = boolify(*initState)
 	validate(worldState, *generations)
-	fmt.Println(stringify(worldState))
-    for i := 0; i < *generations; i++ {
-        worldState = step(worldState, rule)
-        fmt.Println(stringify(worldState))
-    }
+	if !*quiet {
+		fmt.Println(stringify(worldState))
+	}
+	for i := 0; i < *generations; i++ {
+		worldState = step(worldState, rule)
+		if !*quiet || i == *generations-1 {
+			fmt.Println(stringify(worldState))
+		}
+	}
 }
