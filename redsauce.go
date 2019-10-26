@@ -11,11 +11,13 @@ import (
 	"os"
 )
 
-var initState = flag.String("state", "", "Initial worldstate. Use 1s and 0s to specify living and dead cells.")
+var initState = flag.String("state", "", "Initial worldstate. Characters used to represent living and dead cells must match those specified by the alive and dead options.")
 var generations = flag.Int("gen", 10, "The number of generations to iterate.")
 var quiet = flag.Bool("quiet", false, "Only print the final worldstate.")
 var endState = flag.Bool("end", false, "The logical state of cells outside the world. Ignored if wrap is enabled.")
 var wrap = flag.Bool("wrap", false, "If true, the ends of the world are connected.")
+var alive = flag.String("alive", "1", "Single character used to represent a living cell.")
+var dead = flag.String("dead", "0", "Single character used to represent a dead cell.")
 
 // Rule 30
 var rule = map[int]int{
@@ -43,13 +45,19 @@ func validate(state []bool, gen int) {
 	// No failure conditions met, resuming
 }
 
+func validateRepresentations(aliveRep, deadRep string) {
+	if len(aliveRep) != 1 || len(deadRep) != 1 {
+		die("Cell representations must be one character.")
+	}
+}
+
 func boolify(state string) []bool {
 	var bools []bool
 	for _, cell := range state {
-		if cell != '0' && cell != '1' {
+		if string(cell) != *dead && string(cell) != *alive {
 			continue
 		}
-		bools = append(bools, cell == '1')
+		bools = append(bools, string(cell) == *alive)
 	}
 	return bools
 }
@@ -102,13 +110,14 @@ func toInt(subState []bool) int {
 func stringify(state []bool) string {
 	outString := ""
 	for _, cell := range state {
-		outString += map[bool]string{true: "1", false: "0"}[cell]
+		outString += map[bool]string{true: *alive, false: *dead}[cell]
 	}
 	return outString
 }
 
 func main() {
 	flag.Parse()
+	validateRepresentations(*alive, *dead)
 	var worldState = boolify(*initState)
 	validate(worldState, *generations)
 	if !*quiet {
