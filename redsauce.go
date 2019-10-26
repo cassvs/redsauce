@@ -14,7 +14,8 @@ import (
 var initState = flag.String("state", "", "Initial worldstate. Use 1s and 0s to specify living and dead cells.")
 var generations = flag.Int("gen", 10, "The number of generations to iterate.")
 var quiet = flag.Bool("quiet", false, "Only print the final worldstate.")
-var endState = flag.Bool("end", false, "The logical state of cells outside the world.")
+var endState = flag.Bool("end", false, "The logical state of cells outside the world. Ignored if wrap is enabled.")
+var wrap = flag.Bool("wrap", false, "If true, the ends of the world are connected.")
 
 // Rule 30
 var rule = map[int]int{
@@ -67,13 +68,21 @@ func step(state []bool, r map[int]int) []bool {
 func getSubState(state []bool, index int) []bool {
 	var subState []bool
 	if index <= 0 {
-		subState = append(subState, *endState)
+		if *wrap {
+			subState = append(subState, state[len(state)-1])
+		} else {
+			subState = append(subState, *endState)
+		}
 	} else {
 		subState = append(subState, state[index-1])
 	}
 	subState = append(subState, state[index])
 	if index+1 >= len(state) {
-		subState = append(subState, *endState)
+		if *wrap {
+			subState = append(subState, state[0])
+		} else {
+			subState = append(subState, *endState)
+		}
 	} else {
 		subState = append(subState, state[index+1])
 	}
