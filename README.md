@@ -1,0 +1,3 @@
+## redsauce 🍅
+
+Linear cellular automata.
