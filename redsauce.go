@@ -20,7 +20,6 @@ var alive = flag.String("alive", "1", "Single character used to represent a livi
 var dead = flag.String("dead", "0", "Single character used to represent a dead cell.")
 var wolfram = flag.Int("wolfram", 30, "The Wolfram code for a 1-D cellular automation rule.")
 
-
 func die(msg string) {
 	fmt.Fprintf(os.Stderr, "%s\n", msg)
 	os.Exit(1)
@@ -60,25 +59,15 @@ func step(state []bool, r map[int]int) []bool {
 			1:  true,
 			-1: false,
 			0:  cell}[r[toInt(getSubState(state, i))]])
-			//  1: Cell comes to life
-			// -1: Cell dies
-			// 	0: Cell's state doesn't change
+		//  1: Cell comes to life
+		// -1: Cell dies
+		// 	0: Cell's state doesn't change
 	}
 	return newState
 }
 
 func getSubState(state []bool, index int) []bool {
 	var subState []bool
-	if index <= 0 {
-		if *wrap {
-			subState = append(subState, state[len(state)-1])
-		} else {
-			subState = append(subState, *endState)
-		}
-	} else {
-		subState = append(subState, state[index-1])
-	}
-	subState = append(subState, state[index])
 	if index+1 >= len(state) {
 		if *wrap {
 			subState = append(subState, state[0])
@@ -88,6 +77,16 @@ func getSubState(state []bool, index int) []bool {
 	} else {
 		subState = append(subState, state[index+1])
 	}
+	subState = append(subState, state[index])
+	if index <= 0 {
+		if *wrap {
+			subState = append(subState, state[len(state)-1])
+			} else {
+				subState = append(subState, *endState)
+			}
+			} else {
+				subState = append(subState, state[index-1])
+			}
 	return subState
 }
 
@@ -115,7 +114,7 @@ func unpackWolfram(wolf int) map[int]int {
 	}
 	ruleDef := make(map[int]int)
 	for i := 0; i < 8; i++ {
-		if wolf & int(math.Pow(2.0, float64(i))) != 0 {
+		if wolf&int(math.Pow(2.0, float64(i))) != 0 {
 			ruleDef[i] = 1
 		} else {
 			ruleDef[i] = -1
