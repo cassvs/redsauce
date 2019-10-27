@@ -9,9 +9,12 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"math/rand"
+	"time"
 )
 
 var initState = flag.String("state", "", "Initial worldstate. Characters used to represent living and dead cells must match those specified by the alive and dead options.")
+var random = flag.Int("random", 0, "Generate a random initial state of the given size.")
 var generations = flag.Int("gen", 10, "The number of generations to iterate.")
 var quiet = flag.Bool("quiet", false, "Only print the final worldstate.")
 var endState = flag.Bool("end", false, "The logical state of cells outside the world. Ignored if wrap is enabled.")
@@ -123,11 +126,28 @@ func unpackWolfram(wolf int) map[int]int {
 	return ruleDef
 }
 
+func randState(length int) []bool {
+	rand.Seed(time.Now().UnixNano())
+	cellStates := []bool{false, true}
+	var world []bool
+	for i := 0; i < length; i++ {
+		world = append(world, cellStates[rand.Intn(len(cellStates))])
+	}
+	return world
+}
+
 func main() {
 	flag.Parse()
 	validateRepresentations(*alive, *dead)
 	rule := unpackWolfram(*wolfram)
-	var worldState = boolify(*initState)
+	var worldState []bool
+	if *random > 0 {
+		worldState = randState(*random)
+	} else if len(*initState) > 0 {
+		worldState = boolify(*initState)
+	} else {
+		die("No initial state specified.")
+	}
 	validate(worldState, *generations)
 	if !*quiet {
 		fmt.Println(stringify(worldState))
