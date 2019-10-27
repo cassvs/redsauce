@@ -8,8 +8,8 @@ import (
 	"flag"
 	"fmt"
 	"math"
-	"os"
 	"math/rand"
+	"os"
 	"time"
 )
 
@@ -44,24 +44,24 @@ func validateRepresentations(aliveRep, deadRep string) {
 	}
 }
 
-func boolify(state string) []bool {
+func boolify(state string, a, d string) []bool {
 	var bools []bool
 	for _, cell := range state {
-		if string(cell) != *dead && string(cell) != *alive {
+		if string(cell) != d && string(cell) != a {
 			continue
 		}
-		bools = append(bools, string(cell) == *alive)
+		bools = append(bools, string(cell) == a)
 	}
 	return bools
 }
 
-func step(state []bool, r map[int]int) []bool {
+func step(state []bool, r map[int]int, w, e bool) []bool {
 	var newState []bool
 	for i, cell := range state {
 		newState = append(newState, map[int]bool{
 			1:  true,
 			-1: false,
-			0:  cell}[r[toInt(getSubState(state, i))]])
+			0:  cell}[r[toInt(getSubState(state, i, w, e))]])
 		//  1: Cell comes to life
 		// -1: Cell dies
 		// 	0: Cell's state doesn't change
@@ -69,27 +69,27 @@ func step(state []bool, r map[int]int) []bool {
 	return newState
 }
 
-func getSubState(state []bool, index int) []bool {
+func getSubState(state []bool, index int, w, e bool) []bool {
 	var subState []bool
 	if index+1 >= len(state) {
-		if *wrap {
+		if w {
 			subState = append(subState, state[0])
 		} else {
-			subState = append(subState, *endState)
+			subState = append(subState, e)
 		}
 	} else {
 		subState = append(subState, state[index+1])
 	}
 	subState = append(subState, state[index])
 	if index <= 0 {
-		if *wrap {
+		if w {
 			subState = append(subState, state[len(state)-1])
-			} else {
-				subState = append(subState, *endState)
-			}
-			} else {
-				subState = append(subState, state[index-1])
-			}
+		} else {
+			subState = append(subState, e)
+		}
+	} else {
+		subState = append(subState, state[index-1])
+	}
 	return subState
 }
 
@@ -103,10 +103,10 @@ func toInt(subState []bool) int {
 	return acc
 }
 
-func stringify(state []bool) string {
+func stringify(state []bool, a, d string) string {
 	outString := ""
 	for _, cell := range state {
-		outString += map[bool]string{true: *alive, false: *dead}[cell]
+		outString += map[bool]string{true: a, false: d}[cell]
 	}
 	return outString
 }
@@ -144,18 +144,18 @@ func main() {
 	if *random > 0 {
 		worldState = randState(*random)
 	} else if len(*initState) > 0 {
-		worldState = boolify(*initState)
+		worldState = boolify(*initState, *alive, *dead)
 	} else {
 		die("No initial state specified.")
 	}
 	validate(worldState, *generations)
 	if !*quiet {
-		fmt.Println(stringify(worldState))
+		fmt.Println(stringify(worldState, *alive, *dead))
 	}
 	for i := 0; i < *generations; i++ {
-		worldState = step(worldState, rule)
+		worldState = step(worldState, rule, *wrap, *endState)
 		if !*quiet || i == *generations-1 {
-			fmt.Println(stringify(worldState))
+			fmt.Println(stringify(worldState, *alive, *dead))
 		}
 	}
 }
