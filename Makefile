@@ -13,3 +13,8 @@ y.tab.c y.tab.h: ruledef.y
 
 lex.yy.c: ruledef.l
 	$(LEX) ruledef.l
+
+.PHONY:	clean
+
+clean:
+	rm -f *.o y.tab.h y.tab.c lex.yy.c
