@@ -10,7 +10,10 @@ import (
 	"math"
 	"math/rand"
 	"os"
+	"strings"
 	"time"
+	"os/exec"
+	"io"
 )
 
 var initState = flag.String("state", "", "Initial worldstate. Characters used to represent living and dead cells must match those specified by the alive and dead options.")
@@ -21,7 +24,8 @@ var endState = flag.Bool("end", false, "The logical state of cells outside the w
 var wrap = flag.Bool("wrap", false, "If true, the ends of the world are connected.")
 var alive = flag.String("alive", "1", "Single character used to represent a living cell.")
 var dead = flag.String("dead", "0", "Single character used to represent a dead cell.")
-var wolfram = flag.Int("wolfram", 30, "The Wolfram code for a 1-D cellular automation rule.")
+var wolfram = flag.Int("wolfram", -1, "The Wolfram code for a 1-D cellular automation rule.")
+var ruleStr = flag.String("rule", "", "Rule described as a logical expression.")
 
 func die(msg string) {
 	fmt.Fprintf(os.Stderr, "%s\n", msg)
@@ -55,40 +59,53 @@ func boolify(state string, a, d string) []bool {
 	return bools
 }
 
-func step(state []bool, r map[int]int, w, e bool) []bool {
+func step(state []bool, r map[int]int, w, e bool, b int) []bool {
 	var newState []bool
-	for i, cell := range state {
+	for i, _ := range state {
 		newState = append(newState, map[int]bool{
 			1:  true,
-			-1: false,
-			0:  cell}[r[toInt(getSubState(state, i, w, e))]])
+			//-1: false,
+			0:	false}[r[toInt(getSubState(state, i, w, e, b))]])
+			//0:  cell
 		//  1: Cell comes to life
-		// -1: Cell dies
-		// 	0: Cell's state doesn't change
+		// 	0: Cell dies
+		// //	0: Cell's state doesn't change
 	}
 	return newState
 }
 
-func getSubState(state []bool, index int, w, e bool) []bool {
-	var subState []bool
-	if index+1 >= len(state) {
+func getCellWrap(state []bool, index int, w, e bool) bool {
+	if index >= len(state) {
 		if w {
-			subState = append(subState, state[0])
+			for index >= len(state) {
+				index -= len(state)
+			}
+			return state[index]
 		} else {
-			subState = append(subState, e)
+			return e
+		}
+	} else if index < 0 {
+		if w {
+			for index < 0 {
+				index += len(state)
+			}
+			return state[index]
+		} else {
+			return e
 		}
 	} else {
-		subState = append(subState, state[index+1])
+		return state[index]
 	}
-	subState = append(subState, state[index])
-	if index <= 0 {
-		if w {
-			subState = append(subState, state[len(state)-1])
-		} else {
-			subState = append(subState, e)
-		}
-	} else {
-		subState = append(subState, state[index-1])
+}
+
+func getSubState(state []bool, index int, w, e bool, b int) []bool {
+	var subState []bool
+	subState = append(subState, getCellWrap(state, index+1, w, e))
+	subState = append(subState, getCellWrap(state, index, w, e))
+	subState = append(subState, getCellWrap(state, index-1, w, e))
+	for i := 2; len(subState) < b; i += 1 {
+		subState = append(subState, getCellWrap(state, index+i, w, e))
+		subState = append(subState, getCellWrap(state, index-i, w, e))
 	}
 	return subState
 }
@@ -120,7 +137,7 @@ func unpackWolfram(wolf int) map[int]int {
 		if wolf&int(math.Pow(2.0, float64(i))) != 0 {
 			ruleDef[i] = 1
 		} else {
-			ruleDef[i] = -1
+			ruleDef[i] = 0
 		}
 	}
 	return ruleDef
@@ -136,10 +153,48 @@ func randState(length int) []bool {
 	return world
 }
 
+func getParsedRule(ruleString string) (map[int]int, int) {
+	parser := exec.Command("./ruledef")
+	parserIn, err := parser.StdinPipe()
+	if err != nil {
+		die(err.Error())
+	}
+	go func() {
+		defer parserIn.Close()
+		io.WriteString(parserIn, ruleString)
+	}()
+	out, err := parser.CombinedOutput()
+	if err != nil {
+		die(err.Error())
+	}
+	split := strings.Split(string(out), "\n")
+	ruleWidth := int(math.Log2(float64(len(split))))
+	if ruleWidth % 2 == 0 {
+		ruleWidth += 1
+	}
+	ruleDef := make(map[int]int)
+	for i, v := range split {
+		if v == "1" || v == "0" {
+			ruleDef[i] = map[string]int{"1": 1, "0": 0}[v]
+		}
+	}
+	return ruleDef, ruleWidth
+}
+
 func main() {
 	flag.Parse()
 	validateRepresentations(*alive, *dead)
-	rule := unpackWolfram(*wolfram)
+	var rule map[int]int
+	var bitWidth int
+	if *wolfram >= 0 {
+		rule = unpackWolfram(*wolfram)
+		bitWidth = 3
+	} else if len(*ruleStr) > 0 {
+		rule, bitWidth = getParsedRule(*ruleStr)
+	} else {
+		rule = unpackWolfram(110)
+		bitWidth = 3
+	}
 	var worldState []bool
 	if *random > 0 {
 		worldState = randState(*random)
@@ -153,7 +208,7 @@ func main() {
 		fmt.Println(stringify(worldState, *alive, *dead))
 	}
 	for i := 0; i < *generations; i++ {
-		worldState = step(worldState, rule, *wrap, *endState)
+		worldState = step(worldState, rule, *wrap, *endState, bitWidth)
 		if !*quiet || i == *generations-1 {
 			fmt.Println(stringify(worldState, *alive, *dead))
 		}
